@@ -1,32 +1,68 @@
 import React from 'react'
 import { Document, Page, Text, View, Image, Font } from '@react-pdf/renderer'
 
-// Importar fuentes y logo como data URIs (assetsInlineLimit los inlinea en el bundle)
+// Importar fuentes y logo (en prod: data URIs inline; en dev: URLs de Vite)
 import robotoRegularData from '../fonts/Roboto-Regular.ttf'
 import robotoBoldData from '../fonts/Roboto-Bold.ttf'
 import robotoItalicData from '../fonts/Roboto-Italic.ttf'
 import robotoBoldItalicData from '../fonts/Roboto-BoldItalic.ttf'
-import logoDataUri from '../assets/logo-edipa.png'
+import logoUrl from '../assets/logo-edipa.png'
 
-// Convertir data URI base64 a ArrayBuffer (format que @react-pdf necesita)
-function b64ToArrayBuffer(dataUri) {
-  const base64 = dataUri.split(',')[1]
-  const bin = atob(base64)
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return bytes.buffer
+// Cargar una fuente y devolverla como data URL base64 (formato que v4.9 espera)
+async function loadFontDataUri(src) {
+  const res = await fetch(src)
+  if (!res.ok) throw new Error('No se pudo cargar la fuente: ' + src)
+  const buf = await res.arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+  }
+  return 'data:font/ttf;base64,' + btoa(binary)
 }
 
-// Registrar fuentes con datos inline (no dependen de fetch HTTP)
-Font.register({
-  family: 'Roboto',
-  fonts: [
-    { src: { data: b64ToArrayBuffer(robotoRegularData), format: 'truetype' }, fontWeight: 400 },
-    { src: { data: b64ToArrayBuffer(robotoBoldData), format: 'truetype' }, fontWeight: 700 },
-    { src: { data: b64ToArrayBuffer(robotoItalicData), format: 'truetype' }, fontStyle: 'italic', fontWeight: 400 },
-    { src: { data: b64ToArrayBuffer(robotoBoldItalicData), format: 'truetype' }, fontStyle: 'italic', fontWeight: 700 },
-  ],
-})
+// Convertir una URL/data URI de imagen a data URI base64
+async function loadImageDataUri(src) {
+  if (typeof src === 'string' && src.startsWith('data:')) return src
+  const res = await fetch(src)
+  if (!res.ok) throw new Error('No se pudo cargar la imagen: ' + src)
+  const blob = await res.blob()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+let assetsPromise = null
+// Cargar fuentes + logo una sola vez (async, funciona en dev y prod)
+let logoDataUri = null
+function registerFonts() {
+  if (!assetsPromise) {
+    assetsPromise = (async () => {
+      const [regular, bold, italic, boldItalic, logo] = await Promise.all([
+        loadFontDataUri(robotoRegularData),
+        loadFontDataUri(robotoBoldData),
+        loadFontDataUri(robotoItalicData),
+        loadFontDataUri(robotoBoldItalicData),
+        loadImageDataUri(logoUrl),
+      ])
+      logoDataUri = logo
+      Font.register({
+        family: 'Roboto',
+        fonts: [
+          { src: regular, fontWeight: 400 },
+          { src: bold, fontWeight: 700 },
+          { src: italic, fontStyle: 'italic', fontWeight: 400 },
+          { src: boldItalic, fontStyle: 'italic', fontWeight: 700 },
+        ],
+      })
+    })()
+  }
+  return assetsPromise
+}
 
 // Constantes de diseño (extraídas de ProformaPlantilla.pdf)
 const AZUL = '#20305d'
@@ -92,7 +128,11 @@ function ProformaPdf({ data }) {
         <View style={{ flexDirection: 'row', height: 130, backgroundColor: AZUL, position: 'relative' }}>
           <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 240, backgroundColor: ROSA }} />
           <View style={{ flex: 1, justifyContent: 'center', paddingLeft: 26, paddingRight: 10, zIndex: 2 }}>
-            <Image src={logoDataUri} style={{ width: 200, height: 70, objectFit: 'contain' }} />
+            {logoDataUri ? (
+              <Image src={logoDataUri} style={{ width: 200, height: 70, objectFit: 'contain' }} />
+            ) : (
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>EDITORIAL PATRIA</Text>
+            )}
           </View>
           <View style={{ width: 240, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20, zIndex: 3 }}>
             <Text style={{ color: '#fff', fontSize: 30, fontWeight: 'bold', lineHeight: 1.1 }}>PROFORMA</Text>
@@ -185,3 +225,4 @@ function ProformaPdf({ data }) {
 }
 
 export default ProformaPdf
+export { registerFonts }

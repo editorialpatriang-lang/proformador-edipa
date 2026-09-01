@@ -23,7 +23,7 @@ export default function ProformaDetalle({ user }) {
     try {
       const { proforma, items } = await getProforma(id)
       setData({ proforma, items })
-      const pdfData = buildData({ proforma, items })
+      const pdfData = await buildData({ proforma, items })
       const blob = await generatePdfBlob(pdfData)
       setPdfUrl(URL.createObjectURL(blob))
     } catch (e) {
@@ -41,7 +41,8 @@ export default function ProformaDetalle({ user }) {
 
   async function generatePdfBlob(pdfData) {
     const { pdf } = await import('@react-pdf/renderer')
-    const { default: ProformaPdf } = await import('../components/ProformaPdf.jsx')
+    const { default: ProformaPdf, registerFonts } = await import('../components/ProformaPdf.jsx')
+    await registerFonts()  // asegurar fuentes cargadas antes de renderizar
     return pdf(<ProformaPdf data={pdfData} />).toBlob()
   }
 
@@ -65,7 +66,7 @@ export default function ProformaDetalle({ user }) {
     }
     setBusy(true)
     try {
-      const pdfData = buildData({ proforma: data.proforma, items: data.items })
+      const pdfData = await buildData({ proforma: data.proforma, items: data.items })
       const blob = await generatePdfBlob(pdfData)
       const base64 = await blobToBase64(blob)
       const res = await fetch('/api/enviar-proforma', {
