@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/enviar-proforma.js": {
+      "maxDuration": 30
+    }
+  }
+}
