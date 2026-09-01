@@ -9,7 +9,6 @@ import robotoBoldItalicData from '../fonts/Roboto-BoldItalic.ttf'
 import caveatRegularData from '../fonts/Caveat-Regular.ttf'
 import logoUrl from '../assets/logo-edipa.png'
 
-// Cargar fuente como data URI base64 (formato que v4.9 espera)
 async function loadFontDataUri(src) {
   const res = await fetch(src)
   if (!res.ok) throw new Error('No se pudo cargar la fuente: ' + src)
@@ -55,9 +54,7 @@ function registerFonts() {
         { src: italic, fontStyle: 'italic', fontWeight: 400 },
         { src: boldItalic, fontStyle: 'italic', fontWeight: 700 },
       ]})
-      Font.register({ family: 'Caveat', fonts: [
-        { src: caveat, fontWeight: 400 },
-      ]})
+      Font.register({ family: 'Caveat', fonts: [{ src: caveat, fontWeight: 400 }] })
     })()
   }
   return assetsPromise
@@ -95,31 +92,41 @@ const money = v => Number(v || 0).toLocaleString('es-EC', { style: 'currency', c
 const AZUL = '#20305d'
 const ROSA = '#dc2978'
 const TEXTO = '#1d1d1b'
+const GRIS_SECCION = '#eef1f6'   // fondo gris suave para secciones
+const GRIS_BORDE = '#d5dbe6'     // borde de la rejilla
+const GRIS_FILA = '#f7f9fc'      // zebra alternada muy suave
 
-const colCantWidth = 62       // Cant. column: 20-82
-const colDescWidth = 338      // DESCRIPCIÓN column: 82-420
-const colUnitWidth = 76       // V. Unit. column: 420-496
-const colTotalWidth = 78      // V. TOTAL. column: 496-574
+const colCantWidth = 62
+const colDescWidth = 338
+const colUnitWidth = 76
+const colTotalWidth = 78
+
+function Section({ children }) {
+  return (
+    <View style={{
+      backgroundColor: GRIS_SECCION,
+      borderRadius: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginHorizontal: 20,
+    }}>
+      {children}
+    </View>
+  )
+}
 
 function ProformaPdf({ data }) {
   const { numero, fecha, cliente, observaciones, formaPago, plazoEntrega, subtotal, iva, total, items } = data
-  const footerContacts = [
-    { text: '0998349359', x: 73 },
-    { text: 'www.edipatriaec.com', x: 160 },
-    { text: 'mariscal@edipatriaec.com', x: 278 },
-    { text: 'VC Roca E6-26 y Reina Victoria', x: 408 },
-  ]
   const maxRows = 18
   const visibleItems = (items || []).slice(0, maxRows)
   const rowsToRender = visibleItems.length > 0 ? visibleItems : [{ cantidad: '', descripcion: '', valorUnitario: '', valorTotal: '' }]
 
   return (
     <Document>
-      <Page size="A4" style={{ fontFamily: 'Roboto', color: TEXTO }}>
+      <Page size="A4" style={{ fontFamily: 'Roboto', color: TEXTO, paddingBottom: 70 }}>
         {/* ===== HEADER: azul izq + rosa der ===== */}
         <View style={{ flexDirection: 'row', height: 155, backgroundColor: AZUL, position: 'relative' }}>
           <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 366, backgroundColor: ROSA }} />
-          {/* Logo EDIPA */}
           <View style={{ flex: 1, justifyContent: 'center', paddingLeft: 34, zIndex: 2 }}>
             {logoDataUri ? (
               <Image src={logoDataUri} style={{ width: 200, height: 70, objectFit: 'contain' }} />
@@ -127,7 +134,6 @@ function ProformaPdf({ data }) {
               <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>EDITORIAL PATRIA</Text>
             )}
           </View>
-          {/* Texto sobre rosa — posiciones extraídas del PDF original */}
           <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 366, zIndex: 3 }}>
             <Text style={{ position: 'absolute', left: 146, top: 23, color: '#fff', fontSize: 31.5, fontWeight: 'bold' }}>PROFORMA</Text>
             <Text style={{ position: 'absolute', left: 147, top: 61, color: '#fff', fontSize: 16.7, fontWeight: 'bold' }}>RUC: 1708753056001</Text>
@@ -136,81 +142,90 @@ function ProformaPdf({ data }) {
           </View>
         </View>
 
-        {/* ===== DATOS DEL CLIENTE ===== */}
-        <View style={{ position: 'absolute', left: 34, top: 157, right: 21, height: 90 }}>
-          {/* Fila 1: CLIENTE (x=34) | RUC (x=351) */}
-          <View style={{ position: 'absolute', left: 0, top: 0, flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>CLIENTE: </Text>
-            <Text style={{ fontSize: 12, color: TEXTO }}>{cliente.nombre || ''}</Text>
-          </View>
-          <View style={{ position: 'absolute', left: 317, top: 0, flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>RUC: </Text>
-            <Text style={{ fontSize: 12, color: TEXTO }}>{cliente.ruc || ''}</Text>
-          </View>
-          {/* Fila 2: FECHA (y=184 → offset 27) */}
-          <View style={{ position: 'absolute', left: 0, top: 27, flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>FECHA: </Text>
-            <Text style={{ fontSize: 12, color: TEXTO }}>{fecha}</Text>
-          </View>
-          {/* Fila 3: TELÉFONO (y=209 → offset 52) | CORREO (x=232 → offset 198) */}
-          <View style={{ position: 'absolute', left: 0, top: 52, flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>TELÉFONO: </Text>
-            <Text style={{ fontSize: 12, color: TEXTO }}>{cliente.telefono || ''}</Text>
-          </View>
-          <View style={{ position: 'absolute', left: 198, top: 53, flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>CORREO: </Text>
-            <Text style={{ fontSize: 12, color: TEXTO }}>{cliente.correo || ''}</Text>
-          </View>
+        {/* ===== SECCIÓN CLIENTE (fondo gris) ===== */}
+        <View style={{ marginTop: 16 }}>
+          <Section>
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ width: 290, fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>
+                CLIENTE: <Text style={{ fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', color: TEXTO }}>{cliente.nombre || ''}</Text>
+              </Text>
+              <Text style={{ width: 220, fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>
+                RUC: <Text style={{ fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', color: TEXTO }}>{cliente.ruc || ''}</Text>
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              <Text style={{ width: 290, fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>
+                FECHA: <Text style={{ fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', color: TEXTO }}>{fecha}</Text>
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              <Text style={{ width: 200, fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>
+                TELÉFONO: <Text style={{ fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', color: TEXTO }}>{cliente.telefono || ''}</Text>
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: 'bold', fontStyle: 'italic', color: AZUL }}>
+                CORREO: <Text style={{ fontSize: 12, fontWeight: 'normal', fontStyle: 'normal', color: TEXTO }}>{cliente.correo || ''}</Text>
+              </Text>
+            </View>
+          </Section>
         </View>
 
-        {/* ===== TABLA ===== */}
-        <View style={{ paddingHorizontal: 20, marginTop: 88 }}>
+        {/* ===== TABLA CON REJILLA ===== */}
+        <View style={{ marginHorizontal: 20, marginTop: 14, borderWidth: 1, borderColor: GRIS_BORDE, borderRadius: 6, overflow: 'hidden' }}>
           {/* Header fila */}
-          <View style={{ flexDirection: 'row', backgroundColor: AZUL, height: 36, alignItems: 'center' }}>
-            <Text style={{ width: colCantWidth, color: '#fff', fontSize: 15, fontWeight: 'bold', paddingLeft: 16 }}>Cant.</Text>
-            <Text style={{ width: colDescWidth, color: '#fff', fontSize: 15, fontWeight: 'bold', textAlign: 'center' }}>DESCRIPCIÓN</Text>
-            <Text style={{ width: colUnitWidth, color: '#fff', fontSize: 15, fontWeight: 'bold', paddingLeft: 8 }}>V. Unit.</Text>
-            <Text style={{ width: colTotalWidth, color: '#fff', fontSize: 15, fontWeight: 'bold', paddingLeft: 6 }}>V. TOTAL.</Text>
+          <View style={{ flexDirection: 'row', backgroundColor: AZUL, height: 34, alignItems: 'center' }}>
+            <Text style={{ width: colCantWidth, color: '#fff', fontSize: 14, fontWeight: 'bold', paddingLeft: 12 }}>Cant.</Text>
+            <Text style={{ width: colDescWidth, color: '#fff', fontSize: 14, fontWeight: 'bold', textAlign: 'center' }}>DESCRIPCIÓN</Text>
+            <Text style={{ width: colUnitWidth, color: '#fff', fontSize: 14, fontWeight: 'bold', paddingLeft: 8 }}>V. Unit.</Text>
+            <Text style={{ width: colTotalWidth, color: '#fff', fontSize: 14, fontWeight: 'bold', paddingLeft: 6 }}>V. TOTAL.</Text>
           </View>
-          {/* Cuerpo */}
+          {/* Cuerpo con rejilla (zebra) */}
           {rowsToRender.map((it, i) => (
-            <View key={i} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e8ebf2', minHeight: 20, alignItems: 'center', paddingVertical: 2 }}>
-              <Text style={{ width: colCantWidth, fontSize: 12, paddingLeft: 16 }}>{it.cantidad !== '' ? Number(it.cantidad).toLocaleString('es-EC') : ''}</Text>
-              <Text style={{ width: colDescWidth, fontSize: 12, paddingRight: 8 }}>{it.descripcion}</Text>
-              <Text style={{ width: colUnitWidth, fontSize: 12, textAlign: 'right', paddingRight: 8 }}>{it.valorUnitario !== '' ? money(it.valorUnitario) : ''}</Text>
+            <View key={i} style={{
+              flexDirection: 'row',
+              minHeight: 22,
+              alignItems: 'center',
+              backgroundColor: i % 2 === 1 ? GRIS_FILA : '#ffffff',
+              borderBottomWidth: i < rowsToRender.length - 1 ? 1 : 0,
+              borderBottomColor: GRIS_BORDE,
+            }}>
+              <Text style={{ width: colCantWidth, fontSize: 12, paddingLeft: 12 }}>{it.cantidad !== '' ? Number(it.cantidad).toLocaleString('es-EC') : ''}</Text>
+              <Text style={{ width: colDescWidth, fontSize: 12, paddingRight: 8, borderRightWidth: 1, borderRightColor: GRIS_BORDE }}>{it.descripcion}</Text>
+              <Text style={{ width: colUnitWidth, fontSize: 12, textAlign: 'right', paddingRight: 6, borderRightWidth: 1, borderRightColor: GRIS_BORDE }}>{it.valorUnitario !== '' ? money(it.valorUnitario) : ''}</Text>
               <Text style={{ width: colTotalWidth, fontSize: 12, textAlign: 'right', paddingRight: 8 }}>{it.valorTotal !== '' ? money(it.valorTotal) : ''}</Text>
             </View>
           ))}
         </View>
 
-        {/* ===== OBSERVACIONES ===== */}
-        <View style={{ position: 'absolute', left: 34, top: 725 }}>
-          <Text style={{ fontSize: 19.3, fontFamily: 'Caveat', color: ROSA }}>OBSERVACIONES:</Text>
-          <Text style={{ fontSize: 11, marginTop: 4, lineHeight: 1.4, color: TEXTO }}>{observaciones || ''}</Text>
-        </View>
-
-        {/* ===== CONDICIONES (izquierda) ===== */}
-        <View style={{ position: 'absolute', left: 34, top: 745, maxWidth: 350 }}>
-          <Text style={{ fontSize: 13.2, fontWeight: 'bold', color: TEXTO }}>Forma de pago: {formaPago || ''}</Text>
-          <Text style={{ fontSize: 13.2, fontWeight: 'bold', color: TEXTO, marginTop: 14 }}>Plazo de entrega: {plazoEntrega || ''}</Text>
-        </View>
-
-        {/* ===== TOTALES (derecha) ===== */}
-        <View style={{ position: 'absolute', left: 424, top: 722 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 155 }}>
-            <Text style={{ fontSize: 13.5, fontWeight: 'bold', color: '#000' }}>SUBTOTAL</Text>
-            <Text style={{ fontSize: 13.5, color: TEXTO }}>{money(subtotal)}</Text>
-          </View>
-          <View style={{ width: 155, height: 1, backgroundColor: AZUL, marginVertical: 5 }} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 155 }}>
-            <Text style={{ fontSize: 13.5, fontWeight: 'bold', color: '#000' }}>IVA 15%</Text>
-            <Text style={{ fontSize: 13.5, color: TEXTO }}>{money(iva)}</Text>
-          </View>
-          <View style={{ width: 155, height: 2, backgroundColor: AZUL, marginVertical: 5 }} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 155 }}>
-            <Text style={{ fontSize: 13.5, fontWeight: 'bold', color: AZUL }}>TOTAL</Text>
-            <Text style={{ fontSize: 13.5, fontWeight: 'bold', color: AZUL }}>{money(total)}</Text>
-          </View>
+        {/* ===== OBSERVACIONES + CONDICIONES + TOTALES (fondo gris) ===== */}
+        <View style={{ marginTop: 16 }}>
+          <Section>
+            <View style={{ flexDirection: 'row' }}>
+              {/* Izquierda: observaciones y condiciones */}
+              <View style={{ flex: 1, paddingRight: 20 }}>
+                <Text style={{ fontSize: 19.3, fontFamily: 'Caveat', color: ROSA }}>OBSERVACIONES:</Text>
+                <Text style={{ fontSize: 11, marginTop: 4, lineHeight: 1.4, color: TEXTO }}>{observaciones || ''}</Text>
+                <Text style={{ fontSize: 13.2, fontWeight: 'bold', color: TEXTO, marginTop: 14 }}>Forma de pago: <Text style={{ fontWeight: 'normal' }}>{formaPago || ''}</Text></Text>
+                <Text style={{ fontSize: 13.2, fontWeight: 'bold', color: TEXTO, marginTop: 10 }}>Plazo de entrega: <Text style={{ fontWeight: 'normal' }}>{plazoEntrega || ''}</Text></Text>
+              </View>
+              {/* Derecha: totales */}
+              <View style={{ width: 165, justifyContent: 'flex-start', paddingTop: 2 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 165 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: 'bold', color: '#000' }}>SUBTOTAL</Text>
+                  <Text style={{ fontSize: 13.5, color: TEXTO }}>{money(subtotal)}</Text>
+                </View>
+                <View style={{ width: 165, height: 1, backgroundColor: AZUL, marginVertical: 5 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 165 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: 'bold', color: '#000' }}>IVA 15%</Text>
+                  <Text style={{ fontSize: 13.5, color: TEXTO }}>{money(iva)}</Text>
+                </View>
+                <View style={{ width: 165, height: 2, backgroundColor: AZUL, marginVertical: 5 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: 165 }}>
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: AZUL }}>TOTAL</Text>
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: AZUL }}>{money(total)}</Text>
+                </View>
+              </View>
+            </View>
+          </Section>
         </View>
 
         {/* ===== FOOTER ===== */}
