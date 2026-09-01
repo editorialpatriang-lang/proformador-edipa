@@ -1,30 +1,34 @@
 import React from 'react'
 import { Document, Page, Text, View, Image, Font } from '@react-pdf/renderer'
 
-// Registrar fuentes Roboto (fieles a la plantilla)
-const FONT_DIR = '/fonts'
+// Importar fuentes y logo como data URIs (assetsInlineLimit los inlinea en el bundle)
+import robotoRegularData from '../fonts/Roboto-Regular.ttf'
+import robotoBoldData from '../fonts/Roboto-Bold.ttf'
+import robotoItalicData from '../fonts/Roboto-Italic.ttf'
+import robotoBoldItalicData from '../fonts/Roboto-BoldItalic.ttf'
+import logoDataUri from '../assets/logo-edipa.png'
+
+// Convertir data URI base64 a ArrayBuffer (format que @react-pdf necesita)
+function b64ToArrayBuffer(dataUri) {
+  const base64 = dataUri.split(',')[1]
+  const bin = atob(base64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes.buffer
+}
+
+// Registrar fuentes con datos inline (no dependen de fetch HTTP)
 Font.register({
   family: 'Roboto',
-  src: `${FONT_DIR}/Roboto-Regular.ttf`,
-})
-Font.register({
-  family: 'Roboto',
-  fontWeight: 'bold',
-  src: `${FONT_DIR}/Roboto-Bold.ttf`,
-})
-Font.register({
-  family: 'Roboto',
-  fontStyle: 'italic',
-  src: `${FONT_DIR}/Roboto-Italic.ttf`,
-})
-Font.register({
-  family: 'Roboto',
-  fontWeight: 'bold',
-  fontStyle: 'italic',
-  src: `${FONT_DIR}/Roboto-BoldItalic.ttf`,
+  fonts: [
+    { src: { data: b64ToArrayBuffer(robotoRegularData), format: 'truetype' }, fontWeight: 400 },
+    { src: { data: b64ToArrayBuffer(robotoBoldData), format: 'truetype' }, fontWeight: 700 },
+    { src: { data: b64ToArrayBuffer(robotoItalicData), format: 'truetype' }, fontStyle: 'italic', fontWeight: 400 },
+    { src: { data: b64ToArrayBuffer(robotoBoldItalicData), format: 'truetype' }, fontStyle: 'italic', fontWeight: 700 },
+  ],
 })
 
-// Constantes de diseño (extraídas de ProformaPlantilla.pdf, A4 en puntos)
+// Constantes de diseño (extraídas de ProformaPlantilla.pdf)
 const AZUL = '#20305d'
 const ROSA = '#dc2978'
 const TEXTO = '#1d1d1b'
@@ -49,9 +53,7 @@ export function buildProformaPdfData({ proforma, items }) {
     observaciones: proforma?.observaciones || '',
     formaPago: proforma?.forma_pago || '',
     plazoEntrega: proforma?.plazo_entrega || '',
-    subtotal,
-    iva,
-    total,
+    subtotal, iva, total,
     items: (items || []).map(i => ({
       cantidad: Number(i.cantidad || 0),
       descripcion: i.descripcion || '',
@@ -66,7 +68,6 @@ const money = v =>
 
 function ProformaPdf({ data }) {
   const { numero, fecha, cliente, observaciones, formaPago, plazoEntrega, subtotal, iva, total, items } = data
-  const logo = '/images/logo-edipa.png'
   const footerContacts = [
     { text: '0998349359', x: 73 },
     { text: 'www.edipatriaec.com', x: 160 },
@@ -74,7 +75,6 @@ function ProformaPdf({ data }) {
     { text: 'VC Roca E6-26 y Reina Victoria', x: 408 },
   ]
 
-  // Tabla: columnas Cant(20-82) | Desc(82-420) | V.Unit(420-496) | V.Total(496-574)
   const colCant = 30
   const colDesc = 100
   const colUnit = 425
@@ -82,7 +82,6 @@ function ProformaPdf({ data }) {
   const tableTop = 300
   const rowHeight = 20
   const maxRows = 18
-
   const visibleItems = items.slice(0, maxRows)
   const rowsToRender = visibleItems.length > 0 ? visibleItems : [{ cantidad: '', descripcion: '', valorUnitario: '', valorTotal: '' }]
 
@@ -91,20 +90,15 @@ function ProformaPdf({ data }) {
       <Page size="A4" style={{ fontFamily: 'Roboto', color: TEXTO }}>
         {/* ===== HEADER ===== */}
         <View style={{ flexDirection: 'row', height: 130, backgroundColor: AZUL, position: 'relative' }}>
-          {/* Fondo rosa a la derecha */}
           <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 240, backgroundColor: ROSA }} />
-          {/* Logo EDIPA (blanco sobre azul) */}
           <View style={{ flex: 1, justifyContent: 'center', paddingLeft: 26, paddingRight: 10, zIndex: 2 }}>
-            <Image src={logo} style={{ width: 200, height: 70, objectFit: 'contain' }} />
+            <Image src={logoDataUri} style={{ width: 200, height: 70, objectFit: 'contain' }} />
           </View>
-          {/* Título y datos sobre rosa */}
           <View style={{ width: 240, justifyContent: 'center', alignItems: 'flex-end', paddingRight: 20, zIndex: 3 }}>
             <Text style={{ color: '#fff', fontSize: 30, fontWeight: 'bold', lineHeight: 1.1 }}>PROFORMA</Text>
             <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 8 }}>RUC: 1708753056001</Text>
             <Text style={{ color: '#fff', fontSize: 13, fontStyle: 'italic', marginTop: 2 }}>A-003-026</Text>
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 2 }}>
-              Nro{numero}
-            </Text>
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 2 }}>Nro{numero}</Text>
           </View>
         </View>
 
@@ -128,14 +122,12 @@ function ProformaPdf({ data }) {
 
         {/* ===== TABLA ===== */}
         <View style={{ position: 'absolute', left: 20, right: 21, top: tableTop - 20 }}>
-          {/* Header tabla */}
           <View style={{ flexDirection: 'row', backgroundColor: AZUL, height: 36, alignItems: 'center' }}>
             <Text style={{ width: colCant, color: '#fff', fontSize: 13, fontWeight: 'bold', paddingLeft: 16 }}>Cant.</Text>
             <Text style={{ width: colDesc - colCant, color: '#fff', fontSize: 13, fontWeight: 'bold' }}>DESCRIPCIÓN</Text>
             <Text style={{ width: colUnit - colDesc, color: '#fff', fontSize: 13, fontWeight: 'bold', textAlign: 'right', paddingRight: 10 }}>V. Unit.</Text>
             <Text style={{ width: colTotal - colUnit, color: '#fff', fontSize: 13, fontWeight: 'bold', textAlign: 'right', paddingRight: 10 }}>V. TOTAL.</Text>
           </View>
-          {/* Cuerpo tabla */}
           {rowsToRender.map((it, i) => (
             <View key={i} style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e8ebf2', minHeight: rowHeight, alignItems: 'center', paddingVertical: 2 }}>
               <Text style={{ width: colCant, fontSize: 11, paddingLeft: 16 }}>{it.cantidad !== '' ? Number(it.cantidad).toLocaleString('es-EC') : ''}</Text>
