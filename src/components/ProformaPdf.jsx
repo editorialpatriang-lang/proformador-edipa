@@ -6,7 +6,6 @@ import robotoRegularData from '../fonts/Roboto-Regular.ttf'
 import robotoBoldData from '../fonts/Roboto-Bold.ttf'
 import robotoItalicData from '../fonts/Roboto-Italic.ttf'
 import robotoBoldItalicData from '../fonts/Roboto-BoldItalic.ttf'
-import caveatRegularData from '../fonts/Caveat-Regular.ttf'
 import logoUrl from '../assets/logo-edipa.png'
 
 async function loadFontDataUri(src) {
@@ -39,12 +38,11 @@ let logoDataUri = null
 function registerFonts() {
   if (!assetsPromise) {
     assetsPromise = (async () => {
-      const [regular, bold, italic, boldItalic, caveat, logo] = await Promise.all([
+      const [regular, bold, italic, boldItalic, logo] = await Promise.all([
         loadFontDataUri(robotoRegularData),
         loadFontDataUri(robotoBoldData),
         loadFontDataUri(robotoItalicData),
         loadFontDataUri(robotoBoldItalicData),
-        loadFontDataUri(caveatRegularData),
         loadImageDataUri(logoUrl),
       ])
       logoDataUri = logo
@@ -54,7 +52,6 @@ function registerFonts() {
         { src: italic, fontStyle: 'italic', fontWeight: 400 },
         { src: boldItalic, fontStyle: 'italic', fontWeight: 700 },
       ]})
-      Font.register({ family: 'Caveat', fonts: [{ src: caveat, fontWeight: 400 }] })
     })()
   }
   return assetsPromise
@@ -124,9 +121,8 @@ function ProformaPdf({ data }) {
   return (
     <Document>
       <Page size="A4" style={{ fontFamily: 'Roboto', color: TEXTO, paddingBottom: 70 }}>
-        {/* ===== HEADER: azul izq + rosa der ===== */}
+        {/* ===== HEADER: todo azul ===== */}
         <View style={{ flexDirection: 'row', height: 155, backgroundColor: AZUL, position: 'relative' }}>
-          <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 366, backgroundColor: ROSA }} />
           <View style={{ flex: 1, justifyContent: 'center', paddingLeft: 34, zIndex: 2 }}>
             {logoDataUri ? (
               <Image src={logoDataUri} style={{ width: 200, height: 70, objectFit: 'contain' }} />
@@ -202,7 +198,7 @@ function ProformaPdf({ data }) {
             <View style={{ flexDirection: 'row' }}>
               {/* Izquierda: observaciones y condiciones */}
               <View style={{ flex: 1, paddingRight: 20 }}>
-                <Text style={{ fontSize: 19.3, fontFamily: 'Caveat', color: ROSA }}>OBSERVACIONES:</Text>
+                <Text style={{ fontSize: 14, fontFamily: 'Roboto', fontWeight: 'bold', color: ROSA }}>OBSERVACIONES:</Text>
                 <Text style={{ fontSize: 11, marginTop: 4, lineHeight: 1.4, color: TEXTO }}>{observaciones || ''}</Text>
                 <Text style={{ fontSize: 13.2, fontWeight: 'bold', color: TEXTO, marginTop: 14 }}>Forma de pago: <Text style={{ fontWeight: 'normal' }}>{formaPago || ''}</Text></Text>
                 <Text style={{ fontSize: 13.2, fontWeight: 'bold', color: TEXTO, marginTop: 10 }}>Plazo de entrega: <Text style={{ fontWeight: 'normal' }}>{plazoEntrega || ''}</Text></Text>
