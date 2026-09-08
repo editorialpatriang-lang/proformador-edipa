@@ -160,6 +160,7 @@ export default function ProformaDetalle({ user }) {
 
         <div className="detail-actions">
           <button className="btn-primary" onClick={handleDownload}>⬇ Descargar PDF</button>
+          <Link to={`/editar/${proforma.id}`} className="btn-secondary">✎ Editar</Link>
           <button className="btn-secondary" onClick={handleEnviar} disabled={busy}>
             {busy ? 'Enviando…' : '✉ Enviar por correo'}
           </button>

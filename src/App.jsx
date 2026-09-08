@@ -37,6 +37,7 @@ export default function App() {
       <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
       <Route path="/" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
       <Route path="/nueva" element={user ? <NuevaProforma user={user} /> : <Navigate to="/login" />} />
+      <Route path="/editar/:id" element={user ? <NuevaProforma user={user} /> : <Navigate to="/login" />} />
       <Route path="/proforma/:id" element={user ? <ProformaDetalle user={user} /> : <Navigate to="/login" />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   createProforma,
+  updateProforma,
+  getProforma,
   getNextNumero,
   searchClientes,
   saveCliente,
@@ -17,7 +19,10 @@ const emptyItem = () => ({ id: crypto.randomUUID(), descripcion: '', cantidad: 1
 
 export default function NuevaProforma({ user }) {
   const navigate = useNavigate()
+  const { id: editId } = useParams()   // presente solo en modo edición (/editar/:id)
+  const esEdicion = Boolean(editId)
   const [numero, setNumero] = useState(null)
+  const [cargando, setCargando] = useState(esEdicion)
   const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0])
 
   // Cliente
@@ -45,8 +50,41 @@ export default function NuevaProforma({ user }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (esEdicion) {
+      // Cargar proforma existente para edición
+      getProforma(editId).then(({ proforma, items: dbItems }) => {
+        setNumero(proforma.numero)
+        setFecha(proforma.fecha)
+        setCliente({
+          nombre: proforma.cliente_nombre || '',
+          ruc: proforma.cliente_ruc || '',
+          telefono: proforma.cliente_telefono || '',
+          correo: proforma.cliente_correo || '',
+          direccion: proforma.cliente_direccion || '',
+        })
+        setClienteId(proforma.cliente_id || null)
+        setClienteQuery(proforma.cliente_nombre || '')
+        setObservaciones(proforma.observaciones || '')
+        setFormaPago(proforma.forma_pago || '')
+        setPlazoEntrega(proforma.plazo_entrega || '')
+        setItems(dbItems.length > 0
+          ? dbItems.map(it => ({
+              id: crypto.randomUUID(),
+              descripcion: it.descripcion,
+              cantidad: it.cantidad,
+              valor_unitario: it.valor_unitario,
+              valor_total: parseFloat(it.cantidad) * parseFloat(it.valor_unitario),
+            }))
+          : [emptyItem()])
+        setCargando(false)
+      }).catch(e => {
+        setError('No se pudo cargar la proforma: ' + e.message)
+        setCargando(false)
+      })
+      return
+    }
     getNextNumero().then(setNumero).catch(() => setNumero(4843))
-  }, [])
+  }, [editId])
 
   // Búsqueda de cliente con debounce
   useEffect(() => {
@@ -193,6 +231,26 @@ export default function NuevaProforma({ user }) {
 
     setSaving(true)
     try {
+      if (esEdicion) {
+        await updateProforma(
+          editId,
+          {
+            cliente_id: clienteId,
+            cliente_nombre: cliente.nombre,
+            cliente_ruc: cliente.ruc,
+            cliente_telefono: cliente.telefono,
+            cliente_correo: cliente.correo,
+            cliente_direccion: cliente.direccion,
+            fecha,
+            observaciones,
+            forma_pago: formaPago,
+            plazo_entrega: plazoEntrega,
+          },
+          itemsValidos
+        )
+        navigate(`/proforma/${editId}`)
+        return
+      }
       const { proforma } = await createProforma(
         {
           cliente_id: clienteId,
@@ -221,6 +279,14 @@ export default function NuevaProforma({ user }) {
     navigate('/login')
   }
 
+  if (cargando) {
+    return (
+      <div className="app-shell">
+        <div className="app-loading"><div className="spinner" /></div>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -236,12 +302,13 @@ export default function NuevaProforma({ user }) {
 
       <main className="main">
         <div className="dash-head">
-          <h2>Nueva proforma</h2>
-          <Link to="/" className="btn-secondary">← Volver</Link>
+          <h2>{esEdicion ? 'Editar proforma' : 'Nueva proforma'}</h2>
+          <Link to={esEdicion ? `/proforma/${editId}` : '/'} className="btn-secondary">← Volver</Link>
         </div>
 
         <div className="notice">
           Proforma <strong>Nro. {numero !== null ? NUMERO_FORMAT(numero) : '…'}</strong> · RUC 1708753056001 · IVA 15%
+          {esEdicion && ' · El número se mantiene, se actualiza el contenido'}
         </div>
 
         {error && <div className="msg-err">{error}</div>}
@@ -387,9 +454,9 @@ export default function NuevaProforma({ user }) {
         </div>
 
         <div className="form-actions">
-          <Link to="/" className="btn-secondary">Cancelar</Link>
+          <Link to={esEdicion ? `/proforma/${editId}` : '/'} className="btn-secondary">Cancelar</Link>
           <button className="btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando…' : 'Guardar proforma'}
+            {saving ? (esEdicion ? 'Actualizando…' : 'Guardando…') : (esEdicion ? 'Actualizar proforma' : 'Guardar proforma')}
           </button>
         </div>
       </main>

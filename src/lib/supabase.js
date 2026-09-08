@@ -119,6 +119,50 @@ export async function updateProformaEstado(id, estado) {
   if (error) throw error
 }
 
+// Actualizar una proforma existente: campos, totales e items (se reemplazan)
+export async function updateProforma(id, proformaData, items) {
+  const subtotal = items.reduce((s, i) => s + parseFloat(i.valor_total), 0)
+  const iva = subtotal * 0.15
+  const total = subtotal + iva
+
+  const { error: pfErr } = await supabase
+    .from('proformas')
+    .update({
+      cliente_id: proformaData.cliente_id || null,
+      cliente_nombre: proformaData.cliente_nombre,
+      cliente_ruc: proformaData.cliente_ruc,
+      cliente_telefono: proformaData.cliente_telefono,
+      cliente_correo: proformaData.cliente_correo,
+      cliente_direccion: proformaData.cliente_direccion,
+      fecha: proformaData.fecha,
+      observaciones: proformaData.observaciones || '',
+      forma_pago: proformaData.forma_pago || '',
+      plazo_entrega: proformaData.plazo_entrega || '',
+      subtotal: subtotal.toFixed(2),
+      iva: iva.toFixed(2),
+      total: total.toFixed(2),
+    })
+    .eq('id', id)
+  if (pfErr) throw pfErr
+
+  const { error: delErr } = await supabase
+    .from('proforma_items')
+    .delete()
+    .eq('proforma_id', id)
+  if (delErr) throw delErr
+
+  const { error: itErr } = await supabase
+    .from('proforma_items')
+    .insert(items.map(i => ({
+      proforma_id: id,
+      descripcion: i.descripcion,
+      cantidad: parseFloat(i.cantidad),
+      valor_unitario: parseFloat(i.valor_unitario),
+      valor_total: parseFloat(i.valor_total),
+    })))
+  if (itErr) throw itErr
+}
+
 // Client helpers
 export async function searchClientes(query) {
   const { data, error } = await supabase
