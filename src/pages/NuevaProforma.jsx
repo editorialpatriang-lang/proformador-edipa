@@ -11,6 +11,17 @@ import {
   saveProducto,
   signOut,
 } from '../lib/supabase'
+import {
+  EMISORES,
+  EMISOR_DEFAULT,
+  FORMAS_PAGO,
+  FORMA_PAGO_OTRO,
+  FORMA_PAGO_LABELS,
+  FORMA_PAGO_DEFAULT,
+  PLAZOS_ENTREGA,
+  getEmisor,
+  resolveFormaPago,
+} from '../lib/emisores'
 
 const IVA_RATE = 0.15
 const NUMERO_FORMAT = n => String(n).padStart(6, '0')
@@ -23,6 +34,7 @@ export default function NuevaProforma({ user }) {
   const esEdicion = Boolean(editId)
   const [numero, setNumero] = useState(null)
   const [cargando, setCargando] = useState(esEdicion)
+  // La fecha es la de creación de la proforma: se fija a hoy y NO se puede editar.
   const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0])
 
   // Cliente
@@ -41,9 +53,11 @@ export default function NuevaProforma({ user }) {
   // Items
   const [items, setItems] = useState([emptyItem()])
 
-  // Observaciones
+  // Observaciones y condiciones
   const [observaciones, setObservaciones] = useState('')
-  const [formaPago, setFormaPago] = useState('')
+  const [emisor, setEmisor] = useState(EMISOR_DEFAULT)
+  const [formaPago, setFormaPago] = useState(FORMA_PAGO_DEFAULT)
+  const [formaPagoOtro, setFormaPagoOtro] = useState('')
   const [plazoEntrega, setPlazoEntrega] = useState('')
 
   const [saving, setSaving] = useState(false)
@@ -65,7 +79,11 @@ export default function NuevaProforma({ user }) {
         setClienteId(proforma.cliente_id || null)
         setClienteQuery(proforma.cliente_nombre || '')
         setObservaciones(proforma.observaciones || '')
-        setFormaPago(proforma.forma_pago || '')
+        setEmisor(proforma.emisor || EMISOR_DEFAULT)
+        // Si la forma de pago guardada no es una de las opciones, se trata como "Otra"
+        const esOpcion = FORMAS_PAGO.includes(proforma.forma_pago)
+        setFormaPago(esOpcion ? proforma.forma_pago : (proforma.forma_pago ? FORMA_PAGO_OTRO : FORMA_PAGO_DEFAULT))
+        setFormaPagoOtro(esOpcion ? '' : (proforma.forma_pago || ''))
         setPlazoEntrega(proforma.plazo_entrega || '')
         setItems(dbItems.length > 0
           ? dbItems.map(it => ({
@@ -212,6 +230,8 @@ export default function NuevaProforma({ user }) {
   const subtotal = items.reduce((s, it) => s + (parseFloat(it.valor_total) || 0), 0)
   const iva = subtotal * IVA_RATE
   const total = subtotal + iva
+  const emisorData = getEmisor(emisor)
+  const formaPagoFinal = resolveFormaPago(formaPago, formaPagoOtro)
 
   async function handleSave() {
     setError('')
@@ -243,8 +263,9 @@ export default function NuevaProforma({ user }) {
             cliente_direccion: cliente.direccion,
             fecha,
             observaciones,
-            forma_pago: formaPago,
+            forma_pago: formaPagoFinal,
             plazo_entrega: plazoEntrega,
+            emisor,
           },
           itemsValidos
         )
@@ -261,8 +282,9 @@ export default function NuevaProforma({ user }) {
           cliente_direccion: cliente.direccion,
           fecha,
           observaciones,
-          forma_pago: formaPago,
+          forma_pago: formaPagoFinal,
           plazo_entrega: plazoEntrega,
+          emisor,
           creado_por: user.id,
         },
         itemsValidos
@@ -307,11 +329,27 @@ export default function NuevaProforma({ user }) {
         </div>
 
         <div className="notice">
-          Proforma <strong>Nro. {numero !== null ? NUMERO_FORMAT(numero) : '…'}</strong> · RUC 1708753056001 · IVA 15%
+          Proforma <strong>Nro. {numero !== null ? NUMERO_FORMAT(numero) : '…'}</strong> · RUC {emisorData.ruc} · IVA 15%
           {esEdicion && ' · El número se mantiene, se actualiza el contenido'}
         </div>
 
         {error && <div className="msg-err">{error}</div>}
+
+        {/* Emisor / local */}
+        <section className="form-section">
+          <h3>Emisor de la proforma</h3>
+          <div className="field" style={{ maxWidth: 460 }}>
+            <label>Local</label>
+            <select value={emisor} onChange={e => setEmisor(e.target.value)}>
+              {EMISORES.map(em => (
+                <option key={em.id} value={em.id}>{em.nombre} · RUC {em.ruc}</option>
+              ))}
+            </select>
+          </div>
+          <p style={{ fontSize: 13, color: '#4b5563', marginTop: 10 }}>
+            {emisorData.direccion} · Tel. {emisorData.telefono} · {emisorData.correo}
+          </p>
+        </section>
 
         {/* Datos del cliente */}
         <section className="form-section">
@@ -425,15 +463,32 @@ export default function NuevaProforma({ user }) {
           <div className="grid-3">
             <div className="field">
               <label>Forma de pago</label>
-              <input value={formaPago} onChange={e => setFormaPago(e.target.value)} placeholder="p. ej. 50% anticipo, 50% entrega" />
+              <select value={formaPago} onChange={e => setFormaPago(e.target.value)}>
+                {FORMAS_PAGO.map(f => (
+                  <option key={f} value={f}>{FORMA_PAGO_LABELS[f] || f}</option>
+                ))}
+              </select>
             </div>
+            {formaPago === FORMA_PAGO_OTRO && (
+              <div className="field">
+                <label>Especifica la forma de pago</label>
+                <input
+                  value={formaPagoOtro}
+                  onChange={e => setFormaPagoOtro(e.target.value)}
+                  placeholder="p. ej. 30% anticipo, 70% entrega"
+                />
+              </div>
+            )}
             <div className="field">
               <label>Plazo de entrega</label>
-              <input value={plazoEntrega} onChange={e => setPlazoEntrega(e.target.value)} placeholder="p. ej. 5 días hábiles" />
+              <select value={plazoEntrega} onChange={e => setPlazoEntrega(e.target.value)}>
+                <option value="">Selecciona un plazo</option>
+                {PLAZOS_ENTREGA.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
             </div>
             <div className="field">
               <label>Fecha</label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+              <input type="text" value={fecha} readOnly />
             </div>
             <div className="field" style={{ gridColumn: '1 / -1' }}>
               <label>Observaciones</label>

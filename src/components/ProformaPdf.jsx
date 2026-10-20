@@ -7,6 +7,7 @@ import robotoBoldData from '../fonts/Roboto-Bold.ttf'
 import robotoItalicData from '../fonts/Roboto-Italic.ttf'
 import robotoBoldItalicData from '../fonts/Roboto-BoldItalic.ttf'
 import logoUrl from '../assets/logo-edipa.png'
+import { getEmisor } from '../lib/emisores'
 
 async function loadFontDataUri(src) {
   const res = await fetch(src)
@@ -63,6 +64,7 @@ export function buildProformaPdfData({ proforma, items }) {
   const subtotal = proforma?.subtotal != null ? Number(proforma.subtotal) : items.reduce((s, i) => s + Number(i.valor_total || 0), 0)
   const iva = proforma?.iva != null ? Number(proforma.iva) : subtotal * 0.15
   const total = proforma?.total != null ? Number(proforma.total) : subtotal + iva
+  const emisor = getEmisor(proforma?.emisor)
   return {
     numero: 'Nro.' + NUMERO_FORMAT(proforma?.numero ?? 0),
     fecha: proforma?.fecha || '',
@@ -71,6 +73,15 @@ export function buildProformaPdfData({ proforma, items }) {
       ruc: proforma?.cliente_ruc || '',
       telefono: proforma?.cliente_telefono || '',
       correo: proforma?.cliente_correo || '',
+    },
+    emisor: {
+      nombre: emisor.nombre,
+      ruc: emisor.ruc,
+      codigoEstablecimiento: emisor.codigoEstablecimiento,
+      telefono: emisor.telefono,
+      web: emisor.web,
+      correo: emisor.correo,
+      direccion: emisor.direccion,
     },
     observaciones: proforma?.observaciones || '',
     formaPago: proforma?.forma_pago || '',
@@ -113,10 +124,14 @@ function Section({ children }) {
 }
 
 function ProformaPdf({ data }) {
-  const { numero, fecha, cliente, observaciones, formaPago, plazoEntrega, subtotal, iva, total, items } = data
+  const { numero, fecha, cliente, emisor, observaciones, formaPago, plazoEntrega, subtotal, iva, total, items } = data
   const maxRows = 18
   const visibleItems = (items || []).slice(0, maxRows)
   const rowsToRender = visibleItems.length > 0 ? visibleItems : [{ cantidad: '', descripcion: '', valorUnitario: '', valorTotal: '' }]
+  // La dirección de Santa Clara es más larga y el correo es más largo: se ajustan los
+  // tamaños para que entren en una línea (medido con fontkit: ver references).
+  const direccionSize = emisor.direccion.length > 34 ? 8.2 : 9.1
+  const correoSize = 9.0
 
   return (
     <Document>
@@ -132,8 +147,8 @@ function ProformaPdf({ data }) {
           </View>
           <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 366, zIndex: 3 }}>
             <Text style={{ position: 'absolute', left: 146, top: 23, color: '#fff', fontSize: 31.5, fontWeight: 'bold' }}>PROFORMA</Text>
-            <Text style={{ position: 'absolute', left: 147, top: 61, color: '#fff', fontSize: 16.7, fontWeight: 'bold' }}>RUC: 1708753056001</Text>
-            <Text style={{ position: 'absolute', left: 198, top: 79, color: '#fff', fontSize: 15.1, fontStyle: 'italic' }}>A-003-026</Text>
+            <Text style={{ position: 'absolute', left: 147, top: 61, color: '#fff', fontSize: 16.7, fontWeight: 'bold' }}>RUC: {emisor.ruc}</Text>
+            <Text style={{ position: 'absolute', left: 198, top: 79, color: '#fff', fontSize: 15.1, fontStyle: 'italic' }}>{emisor.codigoEstablecimiento}</Text>
             <Text style={{ position: 'absolute', left: 165, top: 91, color: '#fff', fontSize: 24.4, fontWeight: 'bold' }}>{numero}</Text>
           </View>
         </View>
@@ -229,19 +244,19 @@ function ProformaPdf({ data }) {
           <View style={{ width: 32 }} />
           <View style={{ width: 80, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: AZUL, marginRight: 4 }} />
-            <Text style={{ fontSize: 11.3, fontWeight: 'bold', color: AZUL }}>0998349359</Text>
+            <Text style={{ fontSize: 11.3, fontWeight: 'bold', color: AZUL }}>{emisor.telefono}</Text>
           </View>
           <View style={{ width: 118, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: AZUL, marginRight: 4 }} />
-            <Text style={{ fontSize: 9.7, fontWeight: 'bold', color: AZUL }}>www.edipatriaec.com</Text>
+            <Text style={{ fontSize: 9.7, fontWeight: 'bold', color: AZUL }}>{emisor.web}</Text>
           </View>
           <View style={{ width: 130, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: AZUL, marginRight: 4 }} />
-            <Text style={{ fontSize: 9.7, fontWeight: 'bold', color: AZUL }}>mariscal@edipatriaec.com</Text>
+            <Text style={{ fontSize: correoSize, fontWeight: 'bold', color: AZUL }}>{emisor.correo}</Text>
           </View>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: AZUL, marginRight: 4 }} />
-            <Text style={{ fontSize: 9.1, fontWeight: 'bold', color: AZUL }}>VC Roca E6-26 y Reina Victoria</Text>
+            <Text style={{ fontSize: direccionSize, fontWeight: 'bold', color: AZUL }}>{emisor.direccion}</Text>
           </View>
         </View>
       </Page>

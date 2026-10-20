@@ -58,7 +58,7 @@ export async function getProforma(id) {
 }
 
 export async function createProforma(proformaData, items) {
-  // proformaData: { cliente, fecha, observaciones, forma_pago, plazo_entrega, creado_por }
+  // proformaData: { cliente, fecha, observaciones, forma_pago, plazo_entrega, emisor, creado_por }
   // items: [{ descripcion, cantidad, valor_unitario, valor_total }]
   const numero = await getNextNumero()
   const subtotal = items.reduce((s, i) => s + parseFloat(i.valor_total), 0)
@@ -79,6 +79,7 @@ export async function createProforma(proformaData, items) {
       observaciones: proformaData.observaciones || '',
       forma_pago: proformaData.forma_pago || '',
       plazo_entrega: proformaData.plazo_entrega || '',
+      emisor: proformaData.emisor || 'mariscal',
       subtotal: subtotal.toFixed(2),
       iva: iva.toFixed(2),
       total: total.toFixed(2),
@@ -138,6 +139,7 @@ export async function updateProforma(id, proformaData, items) {
       observaciones: proformaData.observaciones || '',
       forma_pago: proformaData.forma_pago || '',
       plazo_entrega: proformaData.plazo_entrega || '',
+      emisor: proformaData.emisor || 'mariscal',
       subtotal: subtotal.toFixed(2),
       iva: iva.toFixed(2),
       total: total.toFixed(2),

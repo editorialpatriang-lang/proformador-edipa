@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getProforma, updateProformaEstado, signOut } from '../lib/supabase'
+import { getEmisor } from '../lib/emisores'
 
 // Lazy load @react-pdf/renderer (pesado ~1.5MB) solo cuando se necesita
 const NUMERO_FORMAT = n => String(n).padStart(6, '0')
@@ -127,6 +128,7 @@ export default function ProformaDetalle({ user }) {
   }
 
   const { proforma, items } = data
+  const emisorData = getEmisor(proforma.emisor)
 
   return (
     <div className="app-shell">
@@ -147,6 +149,7 @@ export default function ProformaDetalle({ user }) {
             <h2 style={{ color: 'var(--azul-oscuro)' }}>Proforma Nro. {NUMERO_FORMAT(proforma.numero)}</h2>
             <p style={{ color: '#6b7280', fontSize: 14, marginTop: 4 }}>
               {proforma.cliente_nombre || 'Cliente sin nombre'} · {proforma.fecha} ·{' '}
+              {emisorData.nombre} · RUC {emisorData.ruc} ·{' '}
               <span className={`badge badge-${proforma.estado}`}>
                 {proforma.estado === 'enviada' ? 'Enviada' : 'Creada'}
               </span>
